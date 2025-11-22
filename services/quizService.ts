@@ -37,42 +37,18 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 export const generateQuestions = (count: number, progress: UserProgress = {}): Question[] => {
-  // Optimized selection strategy
-  const unmastered = [];
-  const mastered = [];
-
-  // Single pass filtering is faster than multiple filter calls
-  for (const v of VOCABULARY_LIST) {
-    if ((progress[v.id] || 0) < 2) {
-        unmastered.push(v);
-    } else {
-        mastered.push(v);
-    }
-  }
-  
-  let selectedVocab: Vocabulary[] = [];
-
-  // 1. Prioritize unmastered words (Shuffle only what we need if possible, but shuffling full array provides better randomness)
-  if (unmastered.length > 0) {
-    const shuffledUnmastered = shuffleArray(unmastered);
-    selectedVocab = shuffledUnmastered.slice(0, count);
-  }
-
-  // 2. Fill with mastered words if needed
-  if (selectedVocab.length < count && mastered.length > 0) {
-    const remainingCount = count - selectedVocab.length;
-    const shuffledMastered = shuffleArray(mastered);
-    selectedVocab = [...selectedVocab, ...shuffledMastered.slice(0, remainingCount)];
-  }
-  
-  // If we still don't have enough (e.g., total vocab < count), just use what we have
-  // Then shuffle the final mix so unmastered questions aren't always first
-  selectedVocab = shuffleArray(selectedVocab);
+  // Pure Random Mode: Shuffle the entire vocabulary list every time
+  // This ensures maximum variety and that users don't see the same words repeatedly
+  // regardless of their mastery status.
+  const shuffledVocab = shuffleArray(VOCABULARY_LIST);
+  const selectedVocab = shuffledVocab.slice(0, count);
 
   return selectedVocab.map((vocab) => {
     // Filter quiz types
     const validTypes = Object.values(QuizType).filter(t => {
         if (vocab.kanji === vocab.kana) {
+            // If Kanji and Kana are same (usually katakana words or hiragana only),
+            // disable reading/writing quizzes that would be identical
             return t !== QuizType.KanjiToKana && t !== QuizType.KanaToKanji;
         }
         return true;

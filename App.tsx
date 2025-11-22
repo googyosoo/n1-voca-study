@@ -114,19 +114,19 @@ const App: React.FC = () => {
     const percentage = stats.total > 0 ? Math.round((stats.mastered / stats.total) * 100) : 0;
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 relative">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-6 relative">
         <Background />
-        <div className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 p-8 text-center border border-white/50">
+        <div className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 p-6 md:p-8 text-center border border-white/50 animate-fade-in">
           <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl shadow-lg shadow-blue-200 mb-8 transform rotate-3 hover:rotate-0 transition-all duration-500">
             <BookOpen className="w-10 h-10 text-white" />
           </div>
           
-          <h1 className="text-4xl font-black text-gray-800 mb-2 tracking-tight">N1 Vocab<br/>Master</h1>
-          <p className="text-gray-500 mb-10 font-medium text-lg">
+          <h1 className="text-3xl md:text-4xl font-black text-gray-800 mb-2 tracking-tight">N1 Vocab<br/>Master</h1>
+          <p className="text-gray-500 mb-8 font-medium text-base md:text-lg">
             JLPT N1 필수 어휘 완전 정복
           </p>
 
-          <div className="bg-white/60 rounded-3xl p-6 mb-10 shadow-inner border border-white/60">
+          <div className="bg-white/60 rounded-3xl p-5 md:p-6 mb-8 shadow-inner border border-white/60">
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-bold text-indigo-900 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-indigo-500" /> 나의 학습 진행도
@@ -155,7 +155,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <Button onClick={startQuiz} fullWidth className="text-xl py-5 shadow-xl shadow-indigo-200 transform transition hover:-translate-y-1 hover:shadow-2xl">
+          <Button onClick={startQuiz} fullWidth className="text-lg md:text-xl py-4 md:py-5 shadow-xl shadow-indigo-200 transform transition hover:-translate-y-1 hover:shadow-2xl">
             <Sparkles className="w-5 h-5 mr-2 animate-pulse" /> 
             오늘의 학습 시작 ({QUESTIONS_PER_SESSION}문항)
           </Button>
@@ -169,21 +169,21 @@ const App: React.FC = () => {
     const percentage = Math.round((quizState.score / quizState.questions.length) * 100);
     
     return (
-      <div className="min-h-screen py-10 px-4 flex flex-col items-center">
+      <div className="min-h-[100dvh] py-8 px-4 flex flex-col items-center">
         <Background />
-        <div className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 overflow-hidden border border-white/50">
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-10 text-center text-white relative overflow-hidden">
+        <div className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 overflow-hidden border border-white/50 animate-fade-in">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 md:p-10 text-center text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-            <Trophy className="w-20 h-20 mx-auto mb-6 text-yellow-300 drop-shadow-lg transform hover:scale-110 transition-transform duration-300" />
-            <h2 className="text-3xl font-black mb-2 tracking-tight">Session Complete!</h2>
-            <p className="opacity-90 font-medium text-indigo-100">오늘도 한 걸음 성장하셨네요.</p>
+            <Trophy className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 text-yellow-300 drop-shadow-lg transform hover:scale-110 transition-transform duration-300" />
+            <h2 className="text-2xl md:text-3xl font-black mb-2 tracking-tight">Session Complete!</h2>
+            <p className="opacity-90 font-medium text-indigo-100 text-sm md:text-base">오늘도 한 걸음 성장하셨네요.</p>
           </div>
           
-          <div className="p-8 text-center">
+          <div className="p-6 md:p-8 text-center">
              <div className="inline-block bg-gray-50 rounded-3xl px-8 py-4 mb-4 border border-gray-100">
                <div className="text-sm text-gray-400 font-bold uppercase tracking-wider mb-1">Score</div>
-               <div className="text-6xl font-black text-gray-800 leading-none">
-                 {quizState.score}<span className="text-3xl text-gray-300 font-medium">/{quizState.questions.length}</span>
+               <div className="text-5xl md:text-6xl font-black text-gray-800 leading-none">
+                 {quizState.score}<span className="text-2xl md:text-3xl text-gray-300 font-medium">/{quizState.questions.length}</span>
                </div>
              </div>
              <p className={`text-lg font-bold ${percentage >= 80 ? 'text-green-500' : 'text-orange-500'}`}>
@@ -191,29 +191,29 @@ const App: React.FC = () => {
              </p>
           </div>
 
-          <div className="px-6 pb-6 bg-gray-50/50 max-h-[400px] overflow-y-auto custom-scrollbar">
-             <h3 className="font-bold text-gray-500 text-sm uppercase tracking-wider mb-4 px-2">Review Incorrect Answers</h3>
+          <div className="px-6 pb-6 bg-gray-50/50 max-h-[300px] md:max-h-[400px] overflow-y-auto custom-scrollbar">
+             <h3 className="font-bold text-gray-500 text-xs md:text-sm uppercase tracking-wider mb-4 px-2">Review Incorrect Answers</h3>
              <div className="space-y-3">
                 {quizState.history.filter(h => !h.isCorrect).length === 0 ? (
                   <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
                     <span className="text-4xl block mb-2">💯</span>
-                    <p className="text-gray-500 font-medium">완벽합니다! 오답이 없어요.</p>
+                    <p className="text-gray-500 font-medium text-sm">완벽합니다! 오답이 없어요.</p>
                   </div>
                 ) : (
                   quizState.history.filter(h => !h.isCorrect).map((item, idx) => (
-                    <div key={idx} className="bg-white p-5 rounded-2xl border border-red-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-center mb-3">
-                         <span className="text-gray-900 font-black text-xl">{item.question.vocab.kanji}</span>
+                    <div key={idx} className="bg-white p-4 md:p-5 rounded-2xl border border-red-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-center mb-2 md:mb-3">
+                         <span className="text-gray-900 font-black text-lg md:text-xl">{item.question.vocab.kanji}</span>
                          <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2.5 py-1 rounded-full uppercase tracking-wide">Incorrect</span>
                       </div>
                       <div className="text-sm space-y-1">
                         <div className="flex gap-2 text-gray-600">
                             <span className="font-bold min-w-[30px] text-red-500">오답</span>
-                            <span className="line-through opacity-70">{item.question.options.find(o => o.id === item.selectedOptionId)?.meaningKo || item.question.options.find(o => o.id === item.selectedOptionId)?.kanji}</span>
+                            <span className="line-through opacity-70 truncate">{item.question.options.find(o => o.id === item.selectedOptionId)?.meaningKo || item.question.options.find(o => o.id === item.selectedOptionId)?.kanji}</span>
                         </div>
                         <div className="flex gap-2 text-gray-800">
                             <span className="font-bold min-w-[30px] text-green-500">정답</span>
-                            <span className="font-medium">{item.question.vocab.meaningKo} <span className="text-gray-400 font-normal">({item.question.vocab.kana})</span></span>
+                            <span className="font-medium truncate">{item.question.vocab.meaningKo} <span className="text-gray-400 font-normal">({item.question.vocab.kana})</span></span>
                         </div>
                       </div>
                     </div>
@@ -222,7 +222,7 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="p-8 bg-white">
+          <div className="p-6 md:p-8 bg-white">
             <Button onClick={startQuiz} fullWidth icon={<RefreshCw className="w-5 h-5 mr-2" />} className="mb-4 py-4 shadow-lg shadow-indigo-100">
                새로운 세션 시작하기
             </Button>
@@ -241,19 +241,19 @@ const App: React.FC = () => {
   const currentQuestion = quizState.questions[quizState.currentQuestionIndex];
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-6 px-4 md:py-10 relative">
+    <div className="min-h-[100dvh] flex flex-col items-center py-4 px-4 md:py-10 relative">
       <Background />
-      <div className="w-full max-w-lg z-10">
-        <div className="flex justify-between items-center mb-8 px-2">
+      <div className="w-full max-w-lg z-10 flex-1 flex flex-col">
+        <div className="flex justify-between items-center mb-6 px-1 md:px-2">
             <div className="flex flex-col">
-                <h1 className="font-black text-gray-800 text-xl tracking-tight">N1 Vocabulary</h1>
-                <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
+                <h1 className="font-black text-gray-800 text-lg md:text-xl tracking-tight">N1 Vocabulary</h1>
+                <span className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
             </div>
             <div className="flex items-center gap-3">
                 <Timer isActive={!quizState.isFinished} />
                 <button 
                     onClick={() => setQuizState(null)} 
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 hover:bg-white text-gray-400 hover:text-red-500 transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 hover:bg-white text-gray-400 hover:text-red-500 transition-all active:scale-95"
                 >
                     <span className="sr-only">Quit</span>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -263,7 +263,7 @@ const App: React.FC = () => {
         
         <ProgressBar current={quizState.currentQuestionIndex + 1} total={quizState.questions.length} />
 
-        <div className="mt-6">
+        <div className="mt-4 md:mt-6 flex-1">
             <QuizCard 
               question={currentQuestion}
               onAnswer={handleAnswer}
@@ -272,19 +272,21 @@ const App: React.FC = () => {
             />
         </div>
 
+        {/* Mobile optimized bottom spacer and fixed button container */}
         {isAnswered && (
-          <div className="fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 md:mt-8 animate-slide-up z-50">
-             <div className="max-w-lg mx-auto">
-                <Button onClick={nextQuestion} fullWidth variant="primary" className="flex items-center justify-center gap-3 h-16 text-xl font-bold shadow-xl shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-1 transition-all">
-                  {quizState.currentQuestionIndex === quizState.questions.length - 1 ? '결과 보기' : '다음 문제'}
-                  <ArrowRight className="w-6 h-6" />
-                </Button>
-             </div>
-          </div>
+          <>
+            <div className="h-24 md:hidden"></div> {/* Spacer for mobile */}
+            <div className="fixed bottom-0 left-0 w-full p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white/80 backdrop-blur-md border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] md:relative md:bg-transparent md:border-0 md:shadow-none md:p-0 md:mt-8 animate-slide-up z-50">
+               <div className="max-w-lg mx-auto">
+                  <Button onClick={nextQuestion} fullWidth variant="primary" className="flex items-center justify-center gap-3 h-14 md:h-16 text-lg md:text-xl font-bold shadow-xl shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-1 transition-all active:scale-[0.98]">
+                    {quizState.currentQuestionIndex === quizState.questions.length - 1 ? '결과 보기' : '다음 문제'}
+                    <ArrowRight className="w-5 h-5 md:w-6 md:h-6" />
+                  </Button>
+               </div>
+            </div>
+          </>
         )}
       </div>
-      {/* Spacer for fixed bottom button on mobile */}
-      {isAnswered && <div className="h-24 md:hidden"></div>}
     </div>
   );
 };
