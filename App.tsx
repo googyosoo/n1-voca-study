@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { generateQuestions, getProgressStats } from './services/quizService';
+import { playSound } from './services/soundService';
 import { QuizState, UserProgress } from './types';
 import QuizCard from './components/QuizCard';
 import Button from './components/Button';
 import ProgressBar from './components/ProgressBar';
+import Timer from './components/Timer';
 import { BookOpen, RefreshCw, Trophy, ArrowRight, BarChart3, Sparkles } from 'lucide-react';
 
 const QUESTIONS_PER_SESSION = 20;
@@ -52,6 +54,9 @@ const App: React.FC = () => {
 
     const currentQuestion = quizState.questions[quizState.currentQuestionIndex];
     const isCorrect = optionId === currentQuestion.correctOptionId;
+
+    // Play Sound Effect
+    playSound(isCorrect ? 'correct' : 'incorrect');
 
     // Update User Progress if correct
     if (isCorrect) {
@@ -244,13 +249,16 @@ const App: React.FC = () => {
                 <h1 className="font-black text-gray-800 text-xl tracking-tight">N1 Vocabulary</h1>
                 <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
             </div>
-            <button 
-                onClick={() => setQuizState(null)} 
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 hover:bg-white text-gray-400 hover:text-red-500 transition-all"
-            >
-                <span className="sr-only">Quit</span>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
+            <div className="flex items-center gap-3">
+                <Timer isActive={!quizState.isFinished} />
+                <button 
+                    onClick={() => setQuizState(null)} 
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/50 hover:bg-white text-gray-400 hover:text-red-500 transition-all"
+                >
+                    <span className="sr-only">Quit</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
         </div>
         
         <ProgressBar current={quizState.currentQuestionIndex + 1} total={quizState.questions.length} />
