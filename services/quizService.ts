@@ -1,3 +1,4 @@
+
 import { Vocabulary, Question, QuizType, UserProgress } from '../types';
 import { VOCABULARY_LIST } from '../constants';
 
@@ -46,18 +47,64 @@ export const generateQuestions = (count: number, progress: UserProgress = {}): Q
   return selectedVocab.map((vocab) => {
     // Filter quiz types
     const validTypes = Object.values(QuizType).filter(t => {
+        // Exclude types where the question prompts with Korean meaning
+        if (t === QuizType.MeaningToKanji || t === QuizType.MeaningToExample) return false;
+
+        // Filter out Kana-related quizzes for words where Kanji == Kana (e.g. Katakana words)
         if (vocab.kanji === vocab.kana) {
-            // If Kanji and Kana are same (usually katakana words or hiragana only),
-            // disable reading/writing quizzes that would be identical
-            return t !== QuizType.KanjiToKana && t !== QuizType.KanaToKanji;
+            if (t === QuizType.KanjiToKana || t === QuizType.KanaToKanji) return false;
         }
+
+        // Filter out Example-related quizzes if no example exists
+        const isExampleType = [
+          QuizType.KanjiToExample,
+          QuizType.KanaToExample,
+          QuizType.ExampleToMeaning
+        ].includes(t as QuizType);
+
+        if (isExampleType && !vocab.example) {
+          return false;
+        }
+
         return true;
     });
 
     const type = validTypes[Math.floor(Math.random() * validTypes.length)];
     
     // Generate distractors efficiently
-    const distractors = getRandomDistractors(vocab.id, 3);
+    // If the quiz type requires examples in options, we must pick distractors that HAVE examples.
+    const isExampleTargetType = [
+      QuizType.KanjiToExample, 
+      QuizType.KanaToExample
+    ].includes(type);
+
+    let distractors: Vocabulary[] = [];
+    
+    if (isExampleTargetType) {
+         // Custom distractor fetcher for example types to ensure distractors have examples
+         const usedIds = new Set<number>();
+         usedIds.add(vocab.id);
+         let attempts = 0;
+         while (distractors.length < 3 && attempts < 100) {
+             const randomIndex = Math.floor(Math.random() * VOCABULARY_LIST.length);
+             const candidate = VOCABULARY_LIST[randomIndex];
+             // Ensure candidate has example
+             if (!usedIds.has(candidate.id) && candidate.example) {
+                 distractors.push(candidate);
+                 usedIds.add(candidate.id);
+             }
+             attempts++;
+         }
+         // Fallback if not enough examples found (shouldn't happen with good data)
+         if (distractors.length < 3) {
+             const extra = getRandomDistractors(vocab.id, 3 - distractors.length);
+             distractors = [...distractors, ...extra];
+         }
+    } else {
+        // For standard types or ExampleToMeaning (where options are meanings), any distractor works
+        distractors = getRandomDistractors(vocab.id, 3);
+    }
+
     const options = shuffleArray([vocab, ...distractors]);
     
     return {

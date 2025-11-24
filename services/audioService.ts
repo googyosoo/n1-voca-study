@@ -2,6 +2,16 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// Singleton AudioContext to prevent resource exhaustion (browsers limit the number of active contexts)
+let ttsAudioContext: AudioContext | null = null;
+
+function getTtsContext(): AudioContext {
+  if (!ttsAudioContext) {
+    ttsAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return ttsAudioContext;
+}
+
 // Helper to decode base64 string to byte array
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -13,7 +23,7 @@ function decode(base64: string) {
   return bytes;
 }
 
-// Helper to decode audio data into an AudioBuffer
+// Helper to decode audio data into an AudioBuffer manually (since we get raw PCM)
 async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
@@ -34,17 +44,15 @@ async function decodeAudioData(
 }
 
 export const playTextToSpeech = async (text: string): Promise<void> => {
+  if (!text) return;
+
   return new Promise(async (resolve) => {
-    let outputAudioContext: AudioContext | null = null;
-    
     try {
-      // 1. Create Context without fixed sampleRate to be compatible with all hardware
-      outputAudioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
+      const ctx = getTtsContext();
       
-      // 2. Ensure context is running (needed for some browsers/policies)
-      if (outputAudioContext.state === 'suspended') {
-          await outputAudioContext.resume();
+      // Ensure context is running. Browsers may suspend it if not created during user interaction.
+      if (ctx.state === 'suspended') {
+          await ctx.resume();
       }
 
       const response = await ai.models.generateContent({
@@ -63,34 +71,25 @@ export const playTextToSpeech = async (text: string): Promise<void> => {
       const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       
       if (!base64Audio) {
-        console.error("No audio data returned from Gemini API");
+        console.warn("No audio data returned from Gemini API");
         resolve();
         return;
       }
 
-      // 3. Decode and create buffer at 24kHz (Gemini native rate)
-      // The AudioContext handles resampling to hardware rate automatically
+      // Decode PCM data. Gemini TTS preview typically returns 24kHz.
       const audioBuffer = await decodeAudioData(
         decode(base64Audio),
-        outputAudioContext,
+        ctx,
         24000,
         1,
       );
 
-      const outputNode = outputAudioContext.createGain();
-      outputNode.connect(outputAudioContext.destination);
-
-      const source = outputAudioContext.createBufferSource();
+      const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(outputNode);
+      source.connect(ctx.destination);
       
-      // 4. Handle completion
       source.onended = () => {
         source.disconnect();
-        outputNode.disconnect();
-        if (outputAudioContext && outputAudioContext.state !== 'closed') {
-             outputAudioContext.close();
-        }
         resolve();
       };
 
@@ -98,12 +97,7 @@ export const playTextToSpeech = async (text: string): Promise<void> => {
 
     } catch (error) {
       console.error("Error playing TTS:", error);
-      alert("오디오 재생에 실패했습니다. 다시 시도해주세요.");
-      
-      // Cleanup on error
-      if (outputAudioContext && outputAudioContext.state !== 'closed') {
-        outputAudioContext.close();
-      }
+      // Resolve anyway so the UI state (spinners) can reset
       resolve();
     }
   });

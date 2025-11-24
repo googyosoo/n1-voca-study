@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Question, QuizType, Vocabulary } from '../types';
 import Button from './Button';
-import { CheckCircle2, XCircle, HelpCircle, Volume2, Loader2, Sparkles } from 'lucide-react';
+import { CheckCircle2, XCircle, HelpCircle, Volume2, Loader2, Sparkles, Quote } from 'lucide-react';
 import { playTextToSpeech } from '../services/audioService';
 import { generateExampleSentence } from '../services/contentService';
 
@@ -28,6 +29,8 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
 
   useEffect(() => {
     const fetchExample = async () => {
+      // Only fetch if we need it for display later AND it's missing
+      // Note: For quiz types where example is the QUESTION, we expect it to exist already due to filtering in quizService.
       if (isAnswered && !example && !isLoadingExample && !hasTriedGenerating) {
         setIsLoadingExample(true);
         setHasTriedGenerating(true);
@@ -46,15 +49,50 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
     }
   }, [isAnswered, example, vocab, isLoadingExample, hasTriedGenerating]);
 
+  // Helper to mask the target word in an example sentence
+  const maskWordInSentence = (sentence: string, word: Vocabulary) => {
+    if (!sentence) return '';
+    
+    const kanjiWord = word.kanji;
+    let result = sentence;
+
+    // Attempt 1: Exact Kanji match
+    if (result.includes(kanjiWord)) {
+        return result.split(kanjiWord).join('_______');
+    }
+    
+    // Attempt 2: Stem match for verbs/adjectives (e.g., 懐く -> 懐)
+    const trailingKana = kanjiWord.match(/[ぁ-ん]+$/);
+    if (trailingKana) {
+        const stem = kanjiWord.substring(0, kanjiWord.length - trailingKana[0].length);
+        if (stem.length > 0 && result.includes(stem)) {
+            return result.split(stem).join('_______');
+        }
+    }
+
+    // Attempt 3: Fallback - if the Kana matches (rare for Kanji words in context but possible)
+    if (result.includes(word.kana)) {
+        return result.split(word.kana).join('_______');
+    }
+    
+    return result;
+  };
+
   const getQuestionText = () => {
     switch (type) {
       case QuizType.KanjiToMeaning:
       case QuizType.KanjiToKana:
+      case QuizType.KanjiToExample:
         return vocab.kanji;
       case QuizType.MeaningToKanji:
+      case QuizType.MeaningToExample:
         return vocab.meaningKo;
       case QuizType.KanaToKanji:
+      case QuizType.KanaToExample:
         return vocab.kana;
+      case QuizType.ExampleToMeaning:
+        // Mask the word to create a Cloze test style question
+        return vocab.example ? maskWordInSentence(vocab.example, vocab) : vocab.kanji;
       default:
         return '';
     }
@@ -63,12 +101,18 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
   const getOptionText = (option: Vocabulary) => {
     switch (type) {
       case QuizType.KanjiToMeaning:
+      case QuizType.ExampleToMeaning:
         return option.meaningKo;
       case QuizType.KanjiToKana:
         return option.kana;
       case QuizType.MeaningToKanji:
       case QuizType.KanaToKanji:
         return option.kanji;
+      case QuizType.KanjiToExample:
+      case QuizType.MeaningToExample:
+      case QuizType.KanaToExample:
+        // Mask the word in options too, so user matches context, not just the word text
+        return option.example ? maskWordInSentence(option.example, option) : "No example available";
       default:
         return '';
     }
@@ -77,15 +121,23 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
   const getInstructionText = () => {
      switch (type) {
       case QuizType.KanjiToMeaning:
-        return "이 단어의 의미는 무엇인가요?";
+        return "이 단어의 의미는?";
       case QuizType.KanjiToKana:
-        return "이 단어는 어떻게 읽나요?";
+        return "이 단어의 읽는 법은?";
       case QuizType.MeaningToKanji:
         return "이 뜻을 가진 단어는?";
       case QuizType.KanaToKanji:
-        return "이 발음에 해당하는 단어는?";
+        return "이 발음의 단어는?";
+      case QuizType.KanjiToExample:
+        return "이 단어가 들어갈 알맞은 예문은?";
+      case QuizType.MeaningToExample:
+        return "이 뜻에 해당하는 단어의 예문은?";
+      case QuizType.KanaToExample:
+        return "이 발음의 단어가 들어갈 예문은?";
+      case QuizType.ExampleToMeaning:
+        return "빈칸에 들어갈 단어의 의미는?";
       default:
-        return '';
+        return '알맞은 답을 고르세요';
     }
   }
 
@@ -101,9 +153,18 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
     else setIsPlayingVocab(false);
   };
 
+  // Determine layout styles based on content length
+  const isLongTextOption = [
+    QuizType.KanjiToExample, 
+    QuizType.MeaningToExample, 
+    QuizType.KanaToExample
+  ].includes(type);
+
+  const isLongTextQuestion = type === QuizType.ExampleToMeaning;
+
   return (
     <div className="w-full">
-      {/* Key added to trigger animation on question change */}
+      {/* Question Card */}
       <div key={vocab.id} className="bg-white/70 backdrop-blur-md rounded-[2rem] shadow-xl shadow-indigo-100/40 p-6 md:p-8 mb-4 md:mb-6 text-center border border-white/60 relative overflow-hidden group transition-all duration-300 animate-fade-in">
         
         <div className="relative z-10">
@@ -111,11 +172,28 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                 <HelpCircle className="w-3 h-3 md:w-4 md:h-4" />
                 {getInstructionText()}
             </p>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-800 mb-4 md:mb-6 min-h-[3.5rem] md:min-h-[4rem] flex items-center justify-center break-keep tracking-tight drop-shadow-sm leading-tight transition-all duration-200">
-            {getQuestionText()}
+            
+            <h2 className={`${isLongTextQuestion ? 'text-xl md:text-2xl leading-relaxed text-left px-2 flex-wrap gap-3' : 'text-4xl md:text-5xl text-center'} font-black text-gray-800 mb-4 md:mb-6 min-h-[3.5rem] md:min-h-[4rem] flex items-center justify-center break-keep tracking-tight drop-shadow-sm transition-all duration-200`}>
+              {isLongTextQuestion && <Quote className="w-6 h-6 md:w-8 md:h-8 text-indigo-200 inline-block mr-2 -mt-4 transform rotate-180" />}
+              {getQuestionText()}
+              {isLongTextQuestion && <Quote className="w-6 h-6 md:w-8 md:h-8 text-indigo-200 inline-block ml-2 -mb-4" />}
+              
+              {isLongTextQuestion && (
+                 <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayAudio(getQuestionText(), false); 
+                    }}
+                    disabled={isPlayingVocab}
+                    className="inline-flex items-center justify-center p-2 rounded-full bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition-colors disabled:opacity-50 touch-manipulation active:scale-95 ml-2 flex-shrink-0"
+                    title="Listen to sentence"
+                >
+                    {isPlayingVocab ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+              )}
             </h2>
             
-            {/* Pronunciation Hint */}
+            {/* Pronunciation Hint for Kanji Question */}
             <div className={`h-8 transition-all duration-300 ease-out ${type === QuizType.KanjiToMeaning && isAnswered ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'}`}>
             {type === QuizType.KanjiToMeaning && isAnswered && (
                 <p className="text-indigo-500 text-lg md:text-xl font-bold bg-indigo-50 inline-block px-4 py-1 rounded-full">
@@ -130,7 +208,8 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
         <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-purple-100 rounded-full opacity-50 mix-blend-multiply filter blur-2xl group-hover:scale-110 transition-transform duration-700"></div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 md:gap-3">
+      {/* Options Grid */}
+      <div className={`grid ${isLongTextOption ? 'grid-cols-1 gap-3' : 'grid-cols-1 gap-2 md:gap-3'}`}>
         {options.map((option, idx) => {
           let variant: 'secondary' | 'success' | 'danger' = 'secondary';
           const isSelected = selectedOptionId === option.id;
@@ -148,24 +227,31 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
             <div key={`${question.vocab.id}-${option.id}`} className="animate-slide-in" style={{ animationDelay: `${idx * 50}ms` }}>
                 <Button
                 variant={variant}
-                className={`relative flex items-center justify-center min-h-[4rem] md:min-h-[4.5rem] text-base md:text-lg transition-all duration-200 ${
-                    isAnswered && !isCorrect && !isSelected ? 'opacity-50 bg-white/40 scale-[0.98] border-transparent' : ''
-                } ${!isAnswered && 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99]'}`}
+                className={`relative flex items-center justify-center 
+                  ${isLongTextOption ? 'min-h-[5rem] md:min-h-[6rem] text-sm md:text-base px-6 py-3 text-left' : 'min-h-[4rem] md:min-h-[4.5rem] text-base md:text-lg'} 
+                  transition-all duration-200 
+                  ${isAnswered && !isCorrect && !isSelected ? 'opacity-50 bg-white/40 scale-[0.98] border-transparent' : ''} 
+                  ${!isAnswered && 'hover:scale-[1.01] hover:shadow-md active:scale-[0.99]'}
+                `}
                 onClick={() => !isAnswered && onAnswer(option.id)}
                 disabled={isAnswered}
                 fullWidth
-                // Ensure no tap delay on mobile
                 style={{ touchAction: 'manipulation' }}
                 >
-                <span className="break-keep font-bold z-10 relative">{getOptionText(option)}</span>
-                {isAnswered && isCorrect && <CheckCircle2 className="absolute right-4 md:right-5 w-5 h-5 md:w-6 md:h-6 animate-in zoom-in duration-200 text-white z-10" />}
-                {isAnswered && isSelected && !isCorrect && <XCircle className="absolute right-4 md:right-5 w-5 h-5 md:w-6 md:h-6 animate-in zoom-in duration-200 text-white z-10" />}
+                <span className={`break-keep font-bold z-10 relative ${isLongTextOption ? 'w-full block leading-snug' : ''}`}>
+                    {getOptionText(option)}
+                </span>
+                
+                {/* Icons */}
+                {isAnswered && isCorrect && <CheckCircle2 className="absolute right-4 md:right-5 w-5 h-5 md:w-6 md:h-6 animate-in zoom-in duration-200 text-white z-10 flex-shrink-0" />}
+                {isAnswered && isSelected && !isCorrect && <XCircle className="absolute right-4 md:right-5 w-5 h-5 md:w-6 md:h-6 animate-in zoom-in duration-200 text-white z-10 flex-shrink-0" />}
                 </Button>
             </div>
           );
         })}
       </div>
       
+      {/* Result Card (Explanation) */}
       {isAnswered && (
         <div className="mt-4 md:mt-6 p-5 md:p-6 bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-lg shadow-indigo-100/50 border border-white/60 text-left animate-fade-in overflow-hidden relative duration-200">
             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
@@ -176,11 +262,10 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                     <span className="text-lg md:text-xl text-indigo-600 font-bold">[{vocab.kana}]</span>
                 </div>
                 <button 
-                    // IMPORTANT: Play the KANA version to ensure Japanese pronunciation
                     onClick={() => handlePlayAudio(vocab.kana, false)}
                     disabled={isPlayingVocab}
                     className="p-2 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors flex items-center justify-center disabled:opacity-50 active:scale-95 touch-manipulation"
-                    title="Pronounce Vocabulary (Japanese)"
+                    title="Pronounce Vocabulary"
                 >
                     {isPlayingVocab ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
                 </button>
