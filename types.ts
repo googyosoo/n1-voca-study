@@ -1,4 +1,6 @@
 
+export type DifficultyLevel = 'Easy' | 'Medium' | 'Hard';
+
 export interface Vocabulary {
   id: number;
   kanji: string;
@@ -6,6 +8,7 @@ export interface Vocabulary {
   meaningEn: string;
   meaningKo: string;
   example?: string;
+  difficulty: DifficultyLevel;
 }
 
 export enum QuizType {
@@ -36,6 +39,8 @@ export interface QuizState {
     selectedOptionId: number;
     isCorrect: boolean;
   }[];
+  startTime?: number;
+  endTime?: number;
 }
 
 export type UserProgress = Record<number, number>; // vocabId -> correctCount

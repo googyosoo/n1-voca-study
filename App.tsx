@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateQuestions, getProgressStats } from './services/quizService';
 import { playSound } from './services/soundService';
-import { QuizState, UserProgress } from './types';
+import { QuizState, UserProgress, DifficultyLevel } from './types';
 import QuizCard from './components/QuizCard';
 import Button from './components/Button';
 import ProgressBar from './components/ProgressBar';
 import Timer from './components/Timer';
-import { BookOpen, RefreshCw, Trophy, ArrowRight, BarChart3, Sparkles } from 'lucide-react';
+import { BookOpen, RefreshCw, Trophy, ArrowRight, BarChart3, Sparkles, Layers } from 'lucide-react';
 
+// Adjusted to 20 as requested
 const QUESTIONS_PER_SESSION = 20;
 
 const App: React.FC = () => {
@@ -15,6 +17,7 @@ const App: React.FC = () => {
   const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('Medium');
 
   // Load progress from localStorage on mount
   useEffect(() => {
@@ -34,13 +37,14 @@ const App: React.FC = () => {
   };
 
   const startQuiz = () => {
-    const questions = generateQuestions(QUESTIONS_PER_SESSION, userProgress);
+    const questions = generateQuestions(QUESTIONS_PER_SESSION, selectedDifficulty, userProgress);
     setQuizState({
       currentQuestionIndex: 0,
       score: 0,
       questions,
       isFinished: false,
       history: [],
+      startTime: Date.now(),
     });
     setIsAnswered(false);
     setSelectedOptionId(null);
@@ -87,7 +91,7 @@ const App: React.FC = () => {
     if (!quizState) return;
 
     if (quizState.currentQuestionIndex >= quizState.questions.length - 1) {
-      setQuizState((prev) => (prev ? { ...prev, isFinished: true } : null));
+      setQuizState((prev) => (prev ? { ...prev, isFinished: true, endTime: Date.now() } : null));
     } else {
       setQuizState((prev) =>
         prev
@@ -122,11 +126,11 @@ const App: React.FC = () => {
           </div>
           
           <h1 className="text-3xl md:text-4xl font-black text-gray-800 mb-2 tracking-tight">N1 Vocab<br/>Master</h1>
-          <p className="text-gray-500 mb-8 font-medium text-base md:text-lg">
+          <p className="text-gray-500 mb-6 font-medium text-base md:text-lg">
             JLPT N1 필수 어휘 완전 정복
           </p>
 
-          <div className="bg-white/60 rounded-3xl p-5 md:p-6 mb-8 shadow-inner border border-white/60">
+          <div className="bg-white/60 rounded-3xl p-5 md:p-6 mb-6 shadow-inner border border-white/60">
             <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-bold text-indigo-900 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-indigo-500" /> 나의 학습 진행도
@@ -154,10 +158,33 @@ const App: React.FC = () => {
                 </div>
             </div>
           </div>
+          
+          {/* Difficulty Selector */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3 px-1">
+                <Layers className="w-4 h-4 text-gray-400" />
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Select Difficulty</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+                {(['Easy', 'Medium', 'Hard'] as DifficultyLevel[]).map((level) => (
+                    <button
+                        key={level}
+                        onClick={() => setSelectedDifficulty(level)}
+                        className={`py-3 px-2 rounded-2xl font-bold text-sm transition-all duration-200 border-2 ${
+                            selectedDifficulty === level
+                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md transform scale-105'
+                                : 'border-transparent bg-gray-50 text-gray-400 hover:bg-gray-100'
+                        }`}
+                    >
+                        {level}
+                    </button>
+                ))}
+            </div>
+          </div>
 
           <Button onClick={startQuiz} fullWidth className="text-lg md:text-xl py-4 md:py-5 shadow-xl shadow-indigo-200 transform transition hover:-translate-y-1 hover:shadow-2xl">
             <Sparkles className="w-5 h-5 mr-2 animate-pulse" /> 
-            오늘의 학습 시작 ({QUESTIONS_PER_SESSION}문항)
+            학습 시작 ({QUESTIONS_PER_SESSION}문항)
           </Button>
         </div>
       </div>
@@ -167,6 +194,15 @@ const App: React.FC = () => {
   // 3. Result Screen
   if (quizState.isFinished) {
     const percentage = Math.round((quizState.score / quizState.questions.length) * 100);
+    const durationSeconds = quizState.startTime && quizState.endTime 
+        ? Math.floor((quizState.endTime - quizState.startTime) / 1000) 
+        : 0;
+    
+    const formatDuration = (secs: number) => {
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        return `${m}m ${s}s`;
+    };
     
     return (
       <div className="min-h-[100dvh] py-8 px-4 flex flex-col items-center">
@@ -176,7 +212,11 @@ const App: React.FC = () => {
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
             <Trophy className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 text-yellow-300 drop-shadow-lg transform hover:scale-110 transition-transform duration-300" />
             <h2 className="text-2xl md:text-3xl font-black mb-2 tracking-tight">Session Complete!</h2>
-            <p className="opacity-90 font-medium text-indigo-100 text-sm md:text-base">오늘도 한 걸음 성장하셨네요.</p>
+            <div className="flex justify-center gap-2 items-center opacity-90 font-medium text-indigo-100 text-sm">
+                <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs uppercase">{selectedDifficulty}</span>
+                <span>•</span>
+                <span>{formatDuration(durationSeconds)}</span>
+            </div>
           </div>
           
           <div className="p-6 md:p-8 text-center">
@@ -247,7 +287,10 @@ const App: React.FC = () => {
         <div className="flex justify-between items-center mb-6 px-1 md:px-2">
             <div className="flex flex-col">
                 <h1 className="font-black text-gray-800 text-lg md:text-xl tracking-tight">N1 Vocabulary</h1>
-                <span className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
+                <div className="flex items-center gap-1.5">
+                    <span className="text--[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
+                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase">{selectedDifficulty}</span>
+                </div>
             </div>
             <div className="flex items-center gap-3">
                 <Timer isActive={!quizState.isFinished} />

@@ -1,5 +1,5 @@
 
-import { Vocabulary, Question, QuizType, UserProgress } from '../types';
+import { Vocabulary, Question, QuizType, UserProgress, DifficultyLevel } from '../types';
 import { VOCABULARY_LIST } from '../constants';
 
 // Optimized for large datasets (O(1) selection instead of array splicing)
@@ -37,11 +37,24 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return newArray;
 };
 
-export const generateQuestions = (count: number, progress: UserProgress = {}): Question[] => {
-  // Pure Random Mode: Shuffle the entire vocabulary list every time
-  // This ensures maximum variety and that users don't see the same words repeatedly
-  // regardless of their mastery status.
-  const shuffledVocab = shuffleArray(VOCABULARY_LIST);
+export const generateQuestions = (count: number, difficulty: DifficultyLevel, progress: UserProgress = {}): Question[] => {
+  // Filter vocabulary by selected difficulty
+  // If we strictly filter by one difficulty, we might not have enough unique words for a long session if the list is small.
+  // Strategy: Prioritize selected difficulty, but fill with others if needed.
+  
+  const targetVocab = VOCABULARY_LIST.filter(v => v.difficulty === difficulty);
+  
+  // If we don't have enough words of this difficulty to fulfill the count (unlikely with full db, but possible with sample),
+  // we mix in some from other levels to ensure the user gets a full quiz.
+  let pool = [...targetVocab];
+  if (pool.length < count) {
+      const otherVocab = VOCABULARY_LIST.filter(v => v.difficulty !== difficulty);
+      const needed = count - pool.length;
+      pool = [...pool, ...shuffleArray(otherVocab).slice(0, needed)];
+  }
+
+  // Shuffle the pool and slice
+  const shuffledVocab = shuffleArray(pool);
   const selectedVocab = shuffledVocab.slice(0, count);
 
   return selectedVocab.map((vocab) => {

@@ -1,13 +1,18 @@
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Singleton AudioContext to prevent resource exhaustion (browsers limit the number of active contexts)
+// Singleton AudioContext to prevent resource exhaustion
 let ttsAudioContext: AudioContext | null = null;
+// Cache to store decoded AudioBuffers for instant playback on repeat
+const audioCache = new Map<string, AudioBuffer>();
 
 function getTtsContext(): AudioContext {
   if (!ttsAudioContext) {
-    ttsAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    ttsAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+      sampleRate: 24000 // Match Gemini TTS typical sample rate
+    });
   }
   return ttsAudioContext;
 }
@@ -30,7 +35,15 @@ async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
+  // Ensure data length is even for Int16 conversion
+  let bufferData = data;
+  if (data.length % 2 !== 0) {
+    const newBuffer = new Uint8Array(data.length + 1);
+    newBuffer.set(data);
+    bufferData = newBuffer;
+  }
+
+  const dataInt16 = new Int16Array(bufferData.buffer, bufferData.byteOffset, bufferData.byteLength / 2);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
@@ -50,9 +63,21 @@ export const playTextToSpeech = async (text: string): Promise<void> => {
     try {
       const ctx = getTtsContext();
       
-      // Ensure context is running. Browsers may suspend it if not created during user interaction.
+      // CRITICAL: Always try to resume the context before playing.
+      // Browsers often suspend AudioContext if it wasn't created inside a user interaction.
       if (ctx.state === 'suspended') {
           await ctx.resume();
+      }
+
+      // Check Cache First for Instant Playback
+      if (audioCache.has(text)) {
+        const audioBuffer = audioCache.get(text)!;
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        source.onended = () => resolve();
+        source.start();
+        return;
       }
 
       const response = await ai.models.generateContent({
@@ -83,6 +108,9 @@ export const playTextToSpeech = async (text: string): Promise<void> => {
         24000,
         1,
       );
+
+      // Cache the result
+      audioCache.set(text, audioBuffer);
 
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
