@@ -10,9 +10,10 @@ const audioCache = new Map<string, AudioBuffer>();
 
 function getTtsContext(): AudioContext {
   if (!ttsAudioContext) {
-    ttsAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-      sampleRate: 24000 // Match Gemini TTS typical sample rate
-    });
+    // FIX: Do not force sampleRate here. Mobile browsers (especially iOS) often fail 
+    // or mute audio if the context sample rate doesn't match the hardware rate.
+    // We handle the 24kHz sample rate in the buffer creation instead.
+    ttsAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   }
   return ttsAudioContext;
 }
@@ -45,6 +46,9 @@ async function decodeAudioData(
 
   const dataInt16 = new Int16Array(bufferData.buffer, bufferData.byteOffset, bufferData.byteLength / 2);
   const frameCount = dataInt16.length / numChannels;
+  
+  // FIX: The context might be 44.1k or 48k, but we tell it this specific buffer is 24k.
+  // The Web Audio API handles the resampling automatically during playback.
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
   for (let channel = 0; channel < numChannels; channel++) {
