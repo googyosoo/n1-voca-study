@@ -15,9 +15,7 @@ interface QuizCardProps {
 
 const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionId, isAnswered }) => {
   const { vocab, type, options } = question;
-  const [isPlayingVocab, setIsPlayingVocab] = useState(false);
   const [isPlayingExample, setIsPlayingExample] = useState(false);
-  const [playingOptionId, setPlayingOptionId] = useState<number | null>(null);
   const [example, setExample] = useState<string | undefined>(vocab.example);
   const [isLoadingExample, setIsLoadingExample] = useState(false);
   const [hasTriedGenerating, setHasTriedGenerating] = useState(false);
@@ -26,7 +24,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
     setExample(vocab.example);
     setIsLoadingExample(false);
     setHasTriedGenerating(false);
-    setPlayingOptionId(null);
   }, [vocab]);
 
   useEffect(() => {
@@ -119,42 +116,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
     }
   };
 
-  // Determine which text to play for audio.
-  // For Japanese words (Kanji), we prefer Kana to ensure correct pronunciation.
-  // For Sentences, we use the full text.
-  const getAudioSource = (item: Vocabulary, context: 'question' | 'option'): string | null => {
-    if (context === 'question') {
-        // Spoiler prevention: Don't play audio if the quiz asks for the reading!
-        if (type === QuizType.KanjiToKana) return null;
-        
-        switch (type) {
-            case QuizType.KanjiToMeaning:
-            case QuizType.KanjiToExample:
-            case QuizType.KanaToKanji: // Question is Kana
-                return item.kana; 
-            case QuizType.ExampleToMeaning:
-                return item.example || null;
-            default:
-                return null;
-        }
-    } else {
-        // Options
-        switch (type) {
-            case QuizType.MeaningToKanji: // Options are Kanji
-            case QuizType.KanaToKanji: // Options are Kanji
-                return item.kana;
-            case QuizType.KanjiToKana: // Options are Kana
-                 return item.kana;
-            case QuizType.KanjiToExample:
-            case QuizType.MeaningToExample:
-            case QuizType.KanaToExample:
-                return item.example || null;
-            default:
-                return null;
-        }
-    }
-  };
-
   const getInstructionText = () => {
      switch (type) {
       case QuizType.KanjiToMeaning:
@@ -178,18 +139,12 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
     }
   }
 
-  const handlePlayAudio = async (text: string, category: 'vocab' | 'example' | 'option', optionId?: number) => {
+  const handlePlayAudio = async (text: string) => {
     if (!text) return;
     
-    if (category === 'vocab') setIsPlayingVocab(true);
-    else if (category === 'example') setIsPlayingExample(true);
-    else if (category === 'option' && optionId) setPlayingOptionId(optionId);
-
+    setIsPlayingExample(true);
     await playTextToSpeech(text);
-
-    if (category === 'vocab') setIsPlayingVocab(false);
-    else if (category === 'example') setIsPlayingExample(false);
-    else if (category === 'option') setPlayingOptionId(null);
+    setIsPlayingExample(false);
   };
 
   // Determine layout styles based on content length
@@ -201,13 +156,10 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
 
   const isLongTextQuestion = type === QuizType.ExampleToMeaning;
   
-  // Check if we should show audio button for the question
-  const questionAudioText = getAudioSource(vocab, 'question');
-
   return (
     <div className="w-full">
       {/* Question Card */}
-      <div key={vocab.id} className="bg-white/70 backdrop-blur-md rounded-[2rem] shadow-xl shadow-indigo-100/40 p-6 md:p-8 mb-4 md:mb-6 text-center border border-white/60 relative overflow-hidden group transition-all duration-300 animate-fade-in">
+      <div key={vocab.id} className="bg-white/70 backdrop-blur-md rounded-[2rem] shadow-xl shadow-indigo-100/40 p-6 md:p-8 mb-4 md:mb-6 text-center border border-white/60 relative overflow-hidden group transition-all duration-300">
         
         <div className="relative z-10">
             <p className="text-indigo-500 text-xs md:text-sm mb-2 md:mb-4 font-bold uppercase tracking-wide flex items-center justify-center gap-2">
@@ -221,20 +173,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                 {getQuestionText()}
                 {isLongTextQuestion && <Quote className="w-6 h-6 md:w-8 md:h-8 text-indigo-200 inline-block ml-2 -mb-4" />}
                 </h2>
-
-                {questionAudioText && (
-                    <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayAudio(questionAudioText, 'vocab'); 
-                        }}
-                        disabled={isPlayingVocab}
-                        className="p-3 rounded-full bg-indigo-50 text-indigo-500 hover:bg-indigo-100 hover:text-indigo-600 transition-colors disabled:opacity-50 touch-manipulation active:scale-95 flex-shrink-0 shadow-sm"
-                        title="Listen"
-                    >
-                        {isPlayingVocab ? <Loader2 className="w-6 h-6 animate-spin" /> : <Volume2 className="w-6 h-6" />}
-                    </button>
-                )}
             </div>
             
             {/* Pronunciation Hint for Kanji Question */}
@@ -258,8 +196,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
           let variant: 'secondary' | 'success' | 'danger' = 'secondary';
           const isSelected = selectedOptionId === option.id;
           const isCorrect = option.id === question.correctOptionId;
-          const optionAudioText = getAudioSource(option, 'option');
-          const isPlayingThisOption = playingOptionId === option.id;
 
           if (isAnswered) {
             if (isCorrect) {
@@ -288,21 +224,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                     <span className={`break-keep font-bold z-10 relative text-left ${isLongTextOption ? 'flex-1 leading-snug' : ''}`}>
                         {getOptionText(option)}
                     </span>
-                    
-                    {/* Option Audio Button - Only show if audio source exists and not answered yet (or always?) - Let's show always for learning */}
-                    {optionAudioText && !isAnswered && (
-                         <div 
-                            className="p-2 rounded-full hover:bg-black/5 text-current/50 hover:text-current transition-colors cursor-pointer z-20 active:scale-90"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayAudio(optionAudioText, 'option', option.id);
-                            }}
-                            role="button"
-                            aria-label="Listen to option"
-                         >
-                            {isPlayingThisOption ? <Loader2 className="w-4 h-4 animate-spin" /> : <Volume2 className="w-4 h-4" />}
-                         </div>
-                    )}
                 </div>
                 
                 {/* Result Icons */}
@@ -324,14 +245,6 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                     <span className="text-2xl md:text-3xl font-black text-gray-800">{vocab.kanji}</span>
                     <span className="text-lg md:text-xl text-indigo-600 font-bold">[{vocab.kana}]</span>
                 </div>
-                <button 
-                    onClick={() => handlePlayAudio(vocab.kana, 'vocab')}
-                    disabled={isPlayingVocab}
-                    className="p-2 rounded-full bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors flex items-center justify-center disabled:opacity-50 active:scale-95 touch-manipulation"
-                    title="Pronounce Vocabulary"
-                >
-                    {isPlayingVocab ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
-                </button>
             </div>
 
             <p className="text-gray-800 font-bold text-lg md:text-xl mb-1 md:mb-2 leading-relaxed">{vocab.meaningKo}</p>
@@ -353,7 +266,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ question, onAnswer, selectedOptionI
                     </p>
                     {example && (
                         <button 
-                            onClick={() => handlePlayAudio(example, 'example')}
+                            onClick={() => handlePlayAudio(example)}
                             disabled={isPlayingExample}
                             className="p-1.5 rounded-full bg-white border border-indigo-100 text-indigo-500 hover:bg-indigo-50 transition-colors flex items-center justify-center disabled:opacity-50 shadow-sm active:scale-95 touch-manipulation"
                             title="Pronounce Example"

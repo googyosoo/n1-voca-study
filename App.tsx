@@ -7,7 +7,7 @@ import QuizCard from './components/QuizCard';
 import Button from './components/Button';
 import ProgressBar from './components/ProgressBar';
 import Timer from './components/Timer';
-import { BookOpen, RefreshCw, Trophy, ArrowRight, BarChart3, Sparkles, Layers } from 'lucide-react';
+import { BookOpen, RefreshCw, Trophy, ArrowRight, BarChart3, Sparkles, Layers, RotateCcw } from 'lucide-react';
 
 // Adjusted to 20 as requested
 const QUESTIONS_PER_SESSION = 20;
@@ -45,6 +45,30 @@ const App: React.FC = () => {
       isFinished: false,
       history: [],
       startTime: Date.now(),
+      isReview: false,
+    });
+    setIsAnswered(false);
+    setSelectedOptionId(null);
+  };
+
+  const startReview = () => {
+    if (!quizState) return;
+    
+    // Get wrong questions from history
+    const wrongQuestions = quizState.history
+        .filter(h => !h.isCorrect)
+        .map(h => h.question);
+
+    if (wrongQuestions.length === 0) return;
+
+    setQuizState({
+        currentQuestionIndex: 0,
+        score: 0,
+        questions: wrongQuestions,
+        isFinished: false,
+        history: [],
+        startTime: Date.now(),
+        isReview: true,
     });
     setIsAnswered(false);
     setSelectedOptionId(null);
@@ -62,8 +86,8 @@ const App: React.FC = () => {
     // Play Sound Effect
     playSound(isCorrect ? 'correct' : 'incorrect');
 
-    // Update User Progress if correct
-    if (isCorrect) {
+    // Update User Progress if correct (Only in normal mode, not review mode to avoid double counting or easy farming)
+    if (isCorrect && !quizState.isReview) {
       const vocabId = currentQuestion.vocab.id;
       const currentCount = userProgress[vocabId] || 0;
       const newProgress = { ...userProgress, [vocabId]: currentCount + 1 };
@@ -203,15 +227,17 @@ const App: React.FC = () => {
         const s = secs % 60;
         return `${m}m ${s}s`;
     };
+
+    const incorrectCount = quizState.history.filter(h => !h.isCorrect).length;
     
     return (
       <div className="min-h-[100dvh] py-8 px-4 flex flex-col items-center">
         <Background />
         <div className="max-w-md w-full bg-white/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 overflow-hidden border border-white/50 animate-fade-in">
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 md:p-10 text-center text-white relative overflow-hidden">
+          <div className={`bg-gradient-to-br ${quizState.isReview ? 'from-orange-500 to-red-500' : 'from-indigo-600 to-purple-600'} p-8 md:p-10 text-center text-white relative overflow-hidden`}>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
             <Trophy className="w-16 h-16 md:w-20 md:h-20 mx-auto mb-6 text-yellow-300 drop-shadow-lg transform hover:scale-110 transition-transform duration-300" />
-            <h2 className="text-2xl md:text-3xl font-black mb-2 tracking-tight">Session Complete!</h2>
+            <h2 className="text-2xl md:text-3xl font-black mb-2 tracking-tight">{quizState.isReview ? 'Review Complete!' : 'Session Complete!'}</h2>
             <div className="flex justify-center gap-2 items-center opacity-90 font-medium text-indigo-100 text-sm">
                 <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs uppercase">{selectedDifficulty}</span>
                 <span>•</span>
@@ -234,7 +260,7 @@ const App: React.FC = () => {
           <div className="px-6 pb-6 bg-gray-50/50 max-h-[300px] md:max-h-[400px] overflow-y-auto custom-scrollbar">
              <h3 className="font-bold text-gray-500 text-xs md:text-sm uppercase tracking-wider mb-4 px-2">Review Incorrect Answers</h3>
              <div className="space-y-3">
-                {quizState.history.filter(h => !h.isCorrect).length === 0 ? (
+                {incorrectCount === 0 ? (
                   <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
                     <span className="text-4xl block mb-2">💯</span>
                     <p className="text-gray-500 font-medium text-sm">완벽합니다! 오답이 없어요.</p>
@@ -262,11 +288,18 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          <div className="p-6 md:p-8 bg-white">
-            <Button onClick={startQuiz} fullWidth icon={<RefreshCw className="w-5 h-5 mr-2" />} className="mb-4 py-4 shadow-lg shadow-indigo-100">
+          <div className="p-6 md:p-8 bg-white space-y-3">
+            {incorrectCount > 0 && (
+                <Button onClick={startReview} fullWidth variant="secondary" icon={<RotateCcw className="w-5 h-5 mr-2" />} className="py-4 border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300">
+                    틀린 문제 복습하기 ({incorrectCount}개)
+                </Button>
+            )}
+            
+            <Button onClick={startQuiz} fullWidth icon={<RefreshCw className="w-5 h-5 mr-2" />} className="py-4 shadow-lg shadow-indigo-100">
                새로운 세션 시작하기
             </Button>
-            <div className="text-center">
+            
+            <div className="text-center pt-2">
                 <button onClick={() => setQuizState(null)} className="text-gray-400 text-sm font-medium hover:text-gray-700 transition-colors">
                     홈 화면으로 돌아가기
                 </button>
@@ -288,8 +321,14 @@ const App: React.FC = () => {
             <div className="flex flex-col">
                 <h1 className="font-black text-gray-800 text-lg md:text-xl tracking-tight">N1 Vocabulary</h1>
                 <div className="flex items-center gap-1.5">
-                    <span className="text--[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
-                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase">{selectedDifficulty}</span>
+                    {quizState.isReview ? (
+                        <span className="text-[10px] md:text-xs font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full uppercase tracking-wider">Review Mode</span>
+                    ) : (
+                        <>
+                            <span className="text-[10px] md:text-xs font-bold text-indigo-500 uppercase tracking-wider">Session in progress</span>
+                            <span className="text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase">{selectedDifficulty}</span>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="flex items-center gap-3">
@@ -306,7 +345,8 @@ const App: React.FC = () => {
         
         <ProgressBar current={quizState.currentQuestionIndex + 1} total={quizState.questions.length} />
 
-        <div className="mt-4 md:mt-6 flex-1">
+        {/* Added key prop for smooth transition animation */}
+        <div key={quizState.currentQuestionIndex} className="mt-4 md:mt-6 flex-1 animate-fade-in">
             <QuizCard 
               question={currentQuestion}
               onAnswer={handleAnswer}

@@ -41,6 +41,7 @@ export interface QuizState {
   }[];
   startTime?: number;
   endTime?: number;
+  isReview?: boolean;
 }
 
 export type UserProgress = Record<number, number>; // vocabId -> correctCount
